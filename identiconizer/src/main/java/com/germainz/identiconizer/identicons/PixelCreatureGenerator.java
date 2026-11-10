@@ -117,6 +117,18 @@ public final class PixelCreatureGenerator {
     private PixelCreatureGenerator() {
     }
 
+    /** The same critter as {@link #generate}, as a palette-based sprite for the shared renderer. */
+    public static PixelSprite generateSprite(byte[] hash) {
+        Result r = generate(hash);
+        int[] pal = new int[PixelSprite.CODES];
+        pal[OUTLINE] = r.outlineColor;
+        pal[BODY] = r.bodyColor;
+        pal[ACCENT] = r.accentColor;
+        pal[EYE] = r.eyeColor;
+        pal[MOUTH] = r.outlineColor;
+        return new PixelSprite(r.cells, pal, r.pupilSize, r.pupilDrop);
+    }
+
     public static Result generate(byte[] hash) {
         Random rnd = new Random(seedFromHash(hash));
 

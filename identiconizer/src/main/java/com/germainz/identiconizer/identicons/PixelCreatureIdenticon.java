@@ -23,8 +23,8 @@ import android.graphics.RectF;
 import android.text.TextUtils;
 
 /**
- * Mirrored pixel-art creature. The shape and colors come from {@link PixelCreatureGenerator};
- * this class only draws them. Each creature is scaled to the largest size whose farthest
+ * Mirrored pixel-art creatures: critters, mushroom folk, beetles, birds and bees, with the
+ * species picked per contact by {@link PixelSpecies}. This class only draws the sprite. Each creature is scaled to the largest size whose farthest
  * corner still fits inside the circle most dialers crop contact photos to.
  */
 public class PixelCreatureIdenticon extends Identicon {
@@ -37,7 +37,7 @@ public class PixelCreatureIdenticon extends Identicon {
         if (hash == null || hash.length != 16)
             return null;
 
-        PixelCreatureGenerator.Result r = PixelCreatureGenerator.generate(hash);
+        PixelSprite r = PixelSpecies.generate(hash);
 
         Bitmap bmp = Bitmap.createBitmap(SIZE, SIZE, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bmp);
@@ -55,15 +55,15 @@ public class PixelCreatureIdenticon extends Identicon {
         for (int y = 0; y < cells.length; y++) {
             for (int x = 0; x < cells[y].length; x++) {
                 int v = cells[y][x];
-                if (v == PixelCreatureGenerator.EMPTY) continue;
-                paint.setColor(colorFor(v, r));
+                if (v == PixelSprite.EMPTY) continue;
+                paint.setColor(r.palette[v]);
                 float left = offsetX + x * cell;
                 float top = offsetY + y * cell;
                 // Round edges to whole pixels so neighbouring cells never leave hairline gaps.
                 rect.set(Math.round(left), Math.round(top),
                         Math.round(left + cell), Math.round(top + cell));
                 canvas.drawRect(rect, paint);
-                if (v == PixelCreatureGenerator.EYE) {
+                if (v == PixelSprite.EYE) {
                     float p = cell * r.pupilSize;
                     float pl = left + (cell - p) / 2f;
                     float pt = top + (cell - p) * r.pupilDrop;
@@ -74,21 +74,6 @@ public class PixelCreatureIdenticon extends Identicon {
             }
         }
         return bmp;
-    }
-
-    private static int colorFor(int v, PixelCreatureGenerator.Result r) {
-        switch (v) {
-            case PixelCreatureGenerator.BODY:
-                return r.bodyColor;
-            case PixelCreatureGenerator.ACCENT:
-                return r.accentColor;
-            case PixelCreatureGenerator.EYE:
-                return r.eyeColor;
-            case PixelCreatureGenerator.OUTLINE:
-            case PixelCreatureGenerator.MOUTH:
-            default:
-                return r.outlineColor;
-        }
     }
 
     @Override
