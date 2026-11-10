@@ -27,12 +27,12 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.ContactsContract;
-import android.support.annotation.NonNull;
-import android.support.v4.content.LocalBroadcastManager;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.DividerItemDecoration;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
+import androidx.annotation.NonNull;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.DividerItemDecoration;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -62,6 +62,7 @@ public class ContactsListActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_contacts_list);
+        SystemBarInsets.apply(this);
         mRecyclerView = findViewById(R.id.recycler_view);
         mRecyclerView.setHasFixedSize(true);
         LinearLayoutManager mLayoutManager = new LinearLayoutManager(this);
@@ -103,26 +104,22 @@ public class ContactsListActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.action_add:
-                startIdenticonService(SERVICE_ADD);
-                break;
-            case R.id.action_clear:
-                startIdenticonService(SERVICE_REMOVE);
-                break;
-            case R.id.action_select_all:
-                checkedItems.clear();
-                for (int i = 0, j = mAdapter.getCount(); i < j; i++)
-                    checkedItems.add(i);
-                mAdapter.notifyDataSetChanged();
-                break;
-            case R.id.action_deselect_all:
-                checkedItems.clear();
-                mAdapter.notifyDataSetChanged();
-                break;
-            case android.R.id.home:
-                onBackPressed();
-                break;
+        // R.id values aren't compile-time constants with AGP 8, so no switch here.
+        int id = item.getItemId();
+        if (id == R.id.action_add) {
+            startIdenticonService(SERVICE_ADD);
+        } else if (id == R.id.action_clear) {
+            startIdenticonService(SERVICE_REMOVE);
+        } else if (id == R.id.action_select_all) {
+            checkedItems.clear();
+            for (int i = 0, j = mAdapter.getCount(); i < j; i++)
+                checkedItems.add(i);
+            mAdapter.notifyDataSetChanged();
+        } else if (id == R.id.action_deselect_all) {
+            checkedItems.clear();
+            mAdapter.notifyDataSetChanged();
+        } else if (id == android.R.id.home) {
+            finish();
         }
         return true;
     }

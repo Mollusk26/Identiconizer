@@ -28,6 +28,7 @@ public class ErrorsListActivity extends ListActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        SystemBarInsets.apply(this);
 
         TextView header = (TextView) getLayoutInflater().inflate(android.R.layout.simple_list_item_1, getListView(), false);
         header.setTextColor(getResources().getColor(android.R.color.holo_orange_light));

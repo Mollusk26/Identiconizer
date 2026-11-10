@@ -1,0 +1,19 @@
+// Vendored copy of https://github.com/LarsWerkman/HoloColorPicker (Apache-2.0, commit 8ba5971).
+// Vendored because the original artifact was only published to the now-retired JCenter.
+plugins {
+    id 'com.android.library'
+}
+
+android {
+    namespace 'com.larswerkman.holocolorpicker'
+    compileSdk 36
+
+    defaultConfig {
+        minSdk 26
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

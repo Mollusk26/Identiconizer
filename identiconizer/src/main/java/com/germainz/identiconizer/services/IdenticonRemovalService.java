@@ -18,31 +18,27 @@
 package com.germainz.identiconizer.services;
 
 import android.app.IntentService;
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.ContentProviderOperation;
 import android.content.ContentValues;
-import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 import android.content.OperationApplicationException;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.Build;
 import android.os.RemoteException;
 import android.provider.ContactsContract;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.content.LocalBroadcastManager;
+import androidx.core.app.ServiceCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.germainz.identiconizer.ContactInfo;
-import com.germainz.identiconizer.IdenticonsSettings;
+import com.germainz.identiconizer.Notifications;
 import com.germainz.identiconizer.R;
 import com.germainz.identiconizer.identicons.IdenticonUtils;
 
 import java.util.ArrayList;
 
+@SuppressWarnings("deprecation")
 public class IdenticonRemovalService extends IntentService {
     private static final String TAG = "IdenticonRepairService";
     private static final int SERVICE_NOTIFICATION_ID = 8675311;
@@ -55,7 +51,11 @@ public class IdenticonRemovalService extends IntentService {
 
     @Override
     protected void onHandleIntent(Intent intent) {
-        startForeground(SERVICE_NOTIFICATION_ID, createNotification());
+        if (intent == null) return;
+        ServiceCompat.startForeground(this, SERVICE_NOTIFICATION_ID,
+                Notifications.progress(this, getString(R.string.identicons_remove_service_running_title),
+                        getString(R.string.identicons_remove_service_running_summary)),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
         // If a predefined contacts list is provided, use it directly.
         // contactsList is set when this service is started from ContactsListActivity.
         if (intent.hasExtra("contactsList")) {
@@ -65,7 +65,8 @@ public class IdenticonRemovalService extends IntentService {
             processPhotos();
         }
         LocalBroadcastManager.getInstance(this).sendBroadcast(new Intent("CONTACTS_UPDATED"));
-        stopForeground(true);
+        getContentResolver().notifyChange(ContactsContract.Data.CONTENT_URI, null);
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE);
     }
 
     private void processPhotos() {
@@ -74,7 +75,7 @@ public class IdenticonRemovalService extends IntentService {
         int currentPhoto = 1;
         while (cursor.moveToNext()) {
             final long contactId = cursor.getLong(0);
-            updateNotification(getString(R.string.identicons_remove_service_running_title),
+            Notifications.update(this, SERVICE_NOTIFICATION_ID, getString(R.string.identicons_remove_service_running_title),
                     String.format(getString(R.string.identicons_remove_service_contact_summary),
                             currentPhoto++, totalPhotos)
             );
@@ -85,7 +86,7 @@ public class IdenticonRemovalService extends IntentService {
         cursor.close();
 
         if (!mOps.isEmpty()) {
-            updateNotification(getString(R.string.identicons_remove_service_running_title),
+            Notifications.update(this, SERVICE_NOTIFICATION_ID, getString(R.string.identicons_remove_service_running_title),
                     getString(R.string.identicons_remove_service_contact_summary_finishing));
             try {
                 // Perform operations in batches of 100, to avoid TransactionTooLargeExceptions
@@ -100,7 +101,7 @@ public class IdenticonRemovalService extends IntentService {
 
     private void processPhotos(ArrayList<ContactInfo> contactInfos) {
         for (int i = 0, j = contactInfos.size(); i < j; i++) {
-            updateNotification(getString(R.string.identicons_remove_service_running_title),
+            Notifications.update(this, SERVICE_NOTIFICATION_ID, getString(R.string.identicons_remove_service_running_title),
                     String.format(getString(R.string.identicons_remove_service_contact_summary),
                             i, j)
             );
@@ -117,10 +118,11 @@ public class IdenticonRemovalService extends IntentService {
                 if (data != null)
                     removeIdenticon(contactId);
             }
+            cursor.close();
         }
 
         if (!mOps.isEmpty()) {
-            updateNotification(getString(R.string.identicons_remove_service_running_title),
+            Notifications.update(this, SERVICE_NOTIFICATION_ID, getString(R.string.identicons_remove_service_running_title),
                     getString(R.string.identicons_remove_service_contact_summary_finishing));
             try {
                 // Perform operations in batches of 100, to avoid TransactionTooLargeExceptions
@@ -174,42 +176,5 @@ public class IdenticonRemovalService extends IntentService {
                 .withValue(ContactsContract.Data.DATA15, null)
                 .withSelection(selection, selectionArgs)
                 .build());
-    }
-
-    private Notification createNotification() {
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.O) {
-            NotificationChannel chan = new NotificationChannel(TAG, TAG, NotificationManager.IMPORTANCE_NONE);
-            NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-            manager.createNotificationChannel(chan);
-        }
-        Intent intent = new Intent(this, IdenticonsSettings.class);
-        PendingIntent contentIntent = PendingIntent.getActivity(this, 0, intent, 0);
-        return new NotificationCompat.Builder(this, TAG)
-                .setAutoCancel(false)
-                .setOngoing(true)
-                .setContentTitle(getString(R.string.identicons_remove_service_running_title))
-                .setContentText(getString(R.string.identicons_remove_service_running_summary))
-                .setSmallIcon(R.drawable.ic_settings_identicons)
-                .setWhen(System.currentTimeMillis())
-                .setContentIntent(contentIntent)
-                .build();
-    }
-
-    private void updateNotification(String title, String text) {
-        Intent intent = new Intent(this, IdenticonsSettings.class);
-        PendingIntent contentIntent = PendingIntent.getActivity(this, 0, intent, 0);
-        NotificationManager nm =
-                (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
-        @SuppressWarnings("deprecation")
-        Notification notice = new Notification.Builder(this)
-                .setAutoCancel(false)
-                .setOngoing(true)
-                .setContentTitle(title)
-                .setContentText(text)
-                .setSmallIcon(R.drawable.ic_settings_identicons)
-                .setWhen(System.currentTimeMillis())
-                .setContentIntent(contentIntent)
-                .getNotification();
-        nm.notify(SERVICE_NOTIFICATION_ID, notice);
     }
 }

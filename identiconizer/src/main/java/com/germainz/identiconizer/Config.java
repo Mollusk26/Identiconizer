@@ -19,11 +19,8 @@ package com.germainz.identiconizer;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-import de.robv.android.xposed.XSharedPreferences;
-
 public class Config {
     private static Config mInstance;
-    private XSharedPreferences mXPreferences = null;
     private SharedPreferences mPreferences = null;
 
     public static final String PACKAGE_NAME = "com.germainz.identiconizer";
@@ -41,32 +38,18 @@ public class Config {
     public static final String PREF_ABOUT = "about";
     public static final String PREF_MAX_CONTACT_ID = "max_contact_id";
 
-    public Config() {
-        mXPreferences = new XSharedPreferences(PACKAGE_NAME, PREFS);
-        mXPreferences.makeWorldReadable();
-    }
-
     private Config(Context context) {
-        mPreferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        mPreferences = context.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
-    public static Config getInstance(Context context) {
+    public static synchronized Config getInstance(Context context) {
         if (mInstance == null)
             mInstance = new Config(context);
         return mInstance;
     }
 
-    public void reload() {
-        if (mXPreferences != null)
-            mXPreferences.reload();
-    }
-
     public boolean isEnabled() {
         return getBoolean(PREF_ENABLED, false);
-    }
-
-    public boolean isXposedModActive() {
-        return false;
     }
 
     public int getIdenticonStyle() {
@@ -129,8 +112,6 @@ public class Config {
         String returnResult = defaultValue;
         if (mPreferences != null)
             returnResult = mPreferences.getString(key, defaultValue);
-        else if (mXPreferences != null)
-            returnResult = mXPreferences.getString(key, defaultValue);
         return returnResult;
     }
 
@@ -138,8 +119,6 @@ public class Config {
         int returnResult = defaultValue;
         if (mPreferences != null)
             returnResult = mPreferences.getInt(key, defaultValue);
-        else if (mXPreferences != null)
-            returnResult = mXPreferences.getInt(key, defaultValue);
         return returnResult;
     }
 
@@ -147,8 +126,6 @@ public class Config {
         boolean returnResult = defaultValue;
         if (mPreferences != null)
             returnResult = mPreferences.getBoolean(key, defaultValue);
-        else if (mXPreferences != null)
-            returnResult = mXPreferences.getBoolean(key, defaultValue);
         return returnResult;
     }
 }

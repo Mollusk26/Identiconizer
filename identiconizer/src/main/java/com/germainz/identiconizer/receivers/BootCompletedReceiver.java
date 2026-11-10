@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013-2014 GermainZ@xda-developers.com
+ * Modified work Copyright (C) 2026 Identiconizer contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,13 +22,13 @@ import android.content.Context;
 import android.content.Intent;
 
 import com.germainz.identiconizer.Config;
-import com.germainz.identiconizer.services.ContactsObserverService;
+import com.germainz.identiconizer.services.NewContactsJobService;
 
+/** Re-arms the new-contacts job after a reboot or an app update (content jobs aren't persisted). */
 public class BootCompletedReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
-        Config config = Config.getInstance(context);
-        if (config.isEnabled() && !config.isXposedModActive())
-            context.startService(new Intent(context, ContactsObserverService.class));
+        if (Config.getInstance(context).isEnabled())
+            NewContactsJobService.schedule(context);
     }
 }

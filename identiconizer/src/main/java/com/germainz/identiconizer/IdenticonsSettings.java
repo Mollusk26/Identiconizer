@@ -28,15 +28,16 @@ import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.Preference;
 import android.preference.Preference.OnPreferenceChangeListener;
 import android.preference.PreferenceScreen;
 import android.preference.SwitchPreference;
 import android.provider.ContactsContract;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.ActionBar;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.appcompat.app.ActionBar;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -47,7 +48,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.germainz.identiconizer.identicons.IdenticonFactory;
-import com.germainz.identiconizer.services.ContactsObserverService;
+import com.germainz.identiconizer.services.NewContactsJobService;
 import com.germainz.identiconizer.services.IdenticonCreationService;
 import com.germainz.identiconizer.services.IdenticonRemovalService;
 import com.larswerkman.holocolorpicker.ColorPicker;
@@ -92,15 +93,12 @@ public class IdenticonsSettings extends AppCompatPreferenceActivity implements O
         bar.setTitle(R.string.app_name);
         getPreferenceManager().setSharedPreferencesMode(MODE_PRIVATE);
         addPreferencesFromResource(R.xml.identicons_prefs);
-        File prefsDir = new File(this.getApplicationInfo().dataDir, "shared_prefs");
-        File prefsFile = new File(prefsDir, getPreferenceManager().getSharedPreferencesName() + ".xml");
-        if (prefsFile.exists()) prefsFile.setReadable(true, false);
         mConfig = Config.getInstance(this);
 
         mEnabledPref = (SwitchPreference) findPreference(Config.PREF_ENABLED);
         mEnabledPref.setChecked(mConfig.isEnabled());
-        if (mEnabledPref.isChecked() && !mConfig.isXposedModActive())
-            startService(new Intent(this, ContactsObserverService.class));
+        if (mEnabledPref.isChecked())
+            NewContactsJobService.schedule(this);
         mEnabledPref.setOnPreferenceChangeListener(this);
 
         PreferenceScreen prefSet = getPreferenceScreen();
@@ -290,6 +288,13 @@ public class IdenticonsSettings extends AppCompatPreferenceActivity implements O
         checkPermissions();
     }
 
+    private static String[] requiredPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+            return new String[]{Manifest.permission.WRITE_CONTACTS, Manifest.permission.READ_CONTACTS,
+                    Manifest.permission.POST_NOTIFICATIONS};
+        return new String[]{Manifest.permission.WRITE_CONTACTS, Manifest.permission.READ_CONTACTS};
+    }
+
     private void checkPermissions() {
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
@@ -302,14 +307,14 @@ public class IdenticonsSettings extends AppCompatPreferenceActivity implements O
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
                                 ActivityCompat.requestPermissions(IdenticonsSettings.this,
-                                        new String[]{Manifest.permission.WRITE_CONTACTS, Manifest.permission.READ_CONTACTS},
+                                        requiredPermissions(),
                                         PERMISSIONS_REQUEST_CODE);
                             }
                         })
                         .show();
             } else {
                 ActivityCompat.requestPermissions(this,
-                        new String[]{Manifest.permission.WRITE_CONTACTS, Manifest.permission.READ_CONTACTS},
+                        requiredPermissions(),
                         PERMISSIONS_REQUEST_CODE);
             }
         }
@@ -317,18 +322,17 @@ public class IdenticonsSettings extends AppCompatPreferenceActivity implements O
     }
 
     @Override
-    public void onPause() {
-        super.onPause();
-        File prefsDir = new File(this.getApplicationInfo().dataDir, "shared_prefs");
-        File prefsFile = new File(prefsDir, getPreferenceManager().getSharedPreferencesName() + ".xml");
-        if (prefsFile.exists()) prefsFile.setReadable(true, false);
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         switch (requestCode) {
             case PERMISSIONS_REQUEST_CODE: {
-                if (grantResults.length == 0 || grantResults[0] == PackageManager.PERMISSION_DENIED) {
+                // Notifications are optional (progress just won't be shown); contacts are not.
+                boolean contactsGranted = grantResults.length > 0;
+                for (int i = 0; i < permissions.length && i < grantResults.length; i++) {
+                    if (permissions[i].endsWith("_CONTACTS") && grantResults[i] != PackageManager.PERMISSION_GRANTED)
+                        contactsGranted = false;
+                }
+                if (!contactsGranted) {
                     Toast.makeText(this, "This app cannot function without the required permissions", Toast.LENGTH_LONG).show();
                     finish();
                 }
@@ -339,10 +343,13 @@ public class IdenticonsSettings extends AppCompatPreferenceActivity implements O
     public boolean onPreferenceChange(Preference preference, Object newValue) {
         if (preference == mEnabledPref) {
             mConfig.setEnabled((Boolean) newValue);
-            if ((Boolean) newValue && !mConfig.isXposedModActive())
-                startService(new Intent(this, ContactsObserverService.class));
-            else if (!mConfig.isXposedModActive())
-                stopService(new Intent(this, ContactsObserverService.class));
+            if ((Boolean) newValue) {
+                // Only contacts added from now on count as "new".
+                NewContactsJobService.resetBaseline(this);
+                NewContactsJobService.schedule(this);
+            } else {
+                NewContactsJobService.cancel(this);
+            }
             return true;
         } else if (preference == mStylePref) {
             int style = Integer.valueOf((String) newValue);
