@@ -19,7 +19,7 @@ jobs:
       # The Android SDK is preinstalled on GitHub's Ubuntu runners (ANDROID_HOME is set);
       # AGP downloads any missing platform/build-tools on first use.
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
         with:
           gradle-version: 8.14.3
 
@@ -46,7 +46,7 @@ jobs:
           mkdir -p out
           cp identiconizer/build/outputs/apk/release/*.apk "out/Identiconizer-${GITHUB_SHA::7}.apk"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: Identiconizer-apk
           path: out/*.apk
