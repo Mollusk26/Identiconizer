@@ -73,6 +73,15 @@ public final class PixelCreatureGenerator {
         /** Pupil size as a fraction of a cell, and its vertical offset (0 = top, 1 = bottom). */
         public final float pupilSize;
         public final float pupilDrop;
+        /** Center of the creature's bounding box, in cell units (grid coordinates). */
+        public final float centerX;
+        public final float centerY;
+        /**
+         * Distance, in cell units, from the center to the farthest corner of any filled cell.
+         * Scaling so this equals the avatar's radius makes the creature as large as possible
+         * while staying inside a circular crop.
+         */
+        public final float radiusCells;
 
         Result(int[][] cells, int bodyColor, int accentColor, int outlineColor,
                float pupilSize, float pupilDrop) {
@@ -84,6 +93,24 @@ public final class PixelCreatureGenerator {
             this.pupilColor = 0xFF1A1A1A;
             this.pupilSize = pupilSize;
             this.pupilDrop = pupilDrop;
+
+            int minX = GRID, minY = GRID, maxX = -1, maxY = -1;
+            for (int y = 0; y < GRID; y++)
+                for (int x = 0; x < GRID; x++)
+                    if (cells[y][x] != EMPTY) {
+                        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+                        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+                    }
+            this.centerX = (minX + maxX + 1) / 2f;
+            this.centerY = (minY + maxY + 1) / 2f;
+            float r = 0;
+            for (int y = 0; y < GRID; y++)
+                for (int x = 0; x < GRID; x++)
+                    if (cells[y][x] != EMPTY)
+                        for (int cy = y; cy <= y + 1; cy++)
+                            for (int cx = x; cx <= x + 1; cx++)
+                                r = Math.max(r, (float) Math.hypot(cx - centerX, cy - centerY));
+            this.radiusCells = r;
         }
     }
 

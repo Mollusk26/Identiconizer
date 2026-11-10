@@ -24,13 +24,13 @@ import android.text.TextUtils;
 
 /**
  * Mirrored pixel-art creature. The shape and colors come from {@link PixelCreatureGenerator};
- * this class only draws them. The creature is drawn with a 1.5-cell margin so circular
- * avatar crops don't clip it.
+ * this class only draws them. Each creature is scaled to the largest size whose farthest
+ * corner still fits inside the circle most dialers crop contact photos to.
  */
 public class PixelCreatureIdenticon extends Identicon {
 
-    private static final float CANVAS_UNITS = PixelCreatureGenerator.GRID + 3f;
-    private static final float MARGIN_UNITS = 1.5f;
+    /** Fraction of the avatar's radius the creature may reach (a hair of breathing room). */
+    private static final float FILL = 0.96f;
 
     @Override
     public Bitmap generateIdenticonBitmap(byte[] hash) {
@@ -43,8 +43,9 @@ public class PixelCreatureIdenticon extends Identicon {
         Canvas canvas = new Canvas(bmp);
         canvas.drawColor(BG_COLOR);
 
-        float cell = SIZE / CANVAS_UNITS;
-        float offset = cell * MARGIN_UNITS;
+        float cell = (SIZE / 2f) * FILL / r.radiusCells;
+        float offsetX = SIZE / 2f - r.centerX * cell;
+        float offsetY = SIZE / 2f - r.centerY * cell;
         Paint paint = new Paint();
         paint.setAntiAlias(false);
         paint.setStyle(Paint.Style.FILL);
@@ -56,8 +57,8 @@ public class PixelCreatureIdenticon extends Identicon {
                 int v = cells[y][x];
                 if (v == PixelCreatureGenerator.EMPTY) continue;
                 paint.setColor(colorFor(v, r));
-                float left = offset + x * cell;
-                float top = offset + y * cell;
+                float left = offsetX + x * cell;
+                float top = offsetY + y * cell;
                 // Round edges to whole pixels so neighbouring cells never leave hairline gaps.
                 rect.set(Math.round(left), Math.round(top),
                         Math.round(left + cell), Math.round(top + cell));
